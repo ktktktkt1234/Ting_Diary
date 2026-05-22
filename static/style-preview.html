@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>「汀」风格预览 — A/B/C</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans SC',sans-serif;background:#1a1a1a;color:#ccc;display:flex;flex-direction:column;min-height:100vh}
+.top{text-align:center;padding:20px 16px 8px}
+.top h1{font-family:'Noto Serif SC',serif;font-size:28px;font-weight:400;letter-spacing:2px}
+.top p{font-size:13px;color:#777;margin-top:4px}
+.grid{display:flex;gap:16px;padding:16px;flex:1;overflow-x:auto}
+.panel{flex:1;min-width:340px;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+.panel-label{text-align:center;font-size:14px;font-weight:400;padding:8px;letter-spacing:4px;color:#aaa}
+/* ═══ A · 水境 ═══ */
+.panel-a .p-inner{--bg:#F5F3EE;--bg-card:#EDE9E2;--bg-side:#EFECE6;--tx:#3A3835;--tx2:#8A8580;--accent1:#7BA5A0;--accent2:#C49A6C;--border:#DDD8D0;--warm:rgba(196,154,108,.12);--cool:rgba(123,165,160,.12);background:var(--bg);color:var(--tx);flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden;
+background-image:
+ radial-gradient(ellipse at 50% 0%, rgba(123,165,160,.12) 0%, transparent 55%),
+ radial-gradient(ellipse at 85% 100%, rgba(196,154,108,.10) 0%, transparent 50%),
+ repeating-linear-gradient(0deg, transparent, transparent 32px, rgba(123,165,160,.10) 32px, rgba(123,165,160,.10) 33px)}
+.panel-a .p-inner::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to top,rgba(123,165,160,.08),transparent);pointer-events:none}
+
+/* water ripple overlay */
+.panel-a .ripple{position:absolute;inset:0;pointer-events:none;opacity:.5}
+.panel-a .ripple::before{content:'';position:absolute;width:120px;height:120px;border-radius:50%;border:1px solid rgba(123,165,160,.15);top:30%;left:25%;transform:scale(1,.4)}
+.panel-a .ripple::after{content:'';position:absolute;width:80px;height:80px;border-radius:50%;border:1px solid rgba(123,165,160,.12);top:55%;left:60%;transform:scale(1,.35)}
+.p-title{font-family:'Noto Serif SC',serif;font-size:20px;font-weight:400;letter-spacing:1px}
+.p-mood{display:flex;gap:6px;flex-wrap:wrap}
+.p-tag{padding:2px 10px;border-radius:12px;font-size:12px;font-weight:300}
+.p-tag.warm{background:var(--warm)}.p-tag.cool{background:var(--cool)}
+.p-meta{font-size:12px;color:var(--tx2);font-weight:300}
+.p-body{font-size:15px;font-weight:300;line-height:1.8;color:var(--tx)}
+.p-body h3{font-family:'Noto Serif SC',serif;font-weight:400;font-size:17px;margin:.8em 0 .4em}
+.p-body p{margin:.4em 0}
+.p-body blockquote{border-left:3px solid;padding-left:14px;margin:.8em 0;color:var(--tx2)}
+.p-a-accent{border-color:var(--accent1)}.p-b-accent{border-color:#8B6E5A}.p-c-accent{border-color:#C49A6C}
+.sidebar-mock{display:flex;gap:4px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:11px;color:var(--tx2)}
+.sidebar-item{padding:6px 10px;border-radius:8px;cursor:default;font-weight:300;background:var(--bg-card)}
+.sidebar-item.active{border-left:3px solid var(--accent1);background:var(--warm)}
+
+/* ═══ B · 墨书 ═══ */
+.panel-b .p-inner{--bg:#FBF7F0;--bg-card:#F5EFE5;--bg-side:#F7F3EC;--tx:#3C3228;--tx2:#8A7B6C;--accent1:#8B6E5A;--accent2:#A68B70;--border:#E8DDD0;--warm:rgba(139,110,90,.1);--cool:rgba(166,139,112,.08);background:var(--bg);color:var(--tx);flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:16px;background-image:linear-gradient(0deg,transparent 27px,rgba(139,110,90,.10) 27px,rgba(139,110,90,.10) 28px,transparent 28px),linear-gradient(90deg,transparent 95%,rgba(139,110,90,.12) 95%)}
+.panel-b .p-title{font-weight:700;font-size:19px}
+.panel-b .sidebar-item.active{border-left-color:var(--accent1);background:var(--warm)}
+.panel-b .p-body{font-size:15px;line-height:2}
+.panel-b .p-accent{border-color:var(--accent1)}
+
+/* ═══ C · 星野 ═══ */
+.panel-c .p-inner{--bg:#0F1117;--bg-card:#181A24;--bg-side:#13151E;--tx:#C8C8D0;--tx2:#7A7A88;--accent1:#D4A574;--accent2:#8B7EC8;--border:#252836;--warm:rgba(212,165,116,.12);--cool:rgba(123,165,181,.1);background:var(--bg);color:var(--tx);flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:16px;
+background-image:
+ radial-gradient(2px 2px at 15% 20%, rgba(255,255,255,.35), transparent),
+ radial-gradient(2px 2px at 55% 65%, rgba(255,255,255,.25), transparent),
+ radial-gradient(1px 1px at 35% 15%, rgba(255,255,255,.30), transparent),
+ radial-gradient(3px 3px at 75% 35%, rgba(200,180,255,.25), transparent),
+ radial-gradient(1px 1px at 10% 55%, rgba(255,255,255,.20), transparent),
+ radial-gradient(2px 2px at 65% 10%, rgba(255,255,255,.28), transparent),
+ radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,.22), transparent),
+ radial-gradient(2px 2px at 40% 85%, rgba(200,180,255,.18), transparent),
+ radial-gradient(1px 1px at 25% 45%, rgba(255,255,255,.15), transparent),
+ radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,.12), transparent)}
+.panel-c .p-title{color:#DDD8E8}
+.panel-c .sidebar-item.active{border-left-color:var(--accent2);background:rgba(139,126,200,.1)}
+
+/* mobile */
+@media(max-width:768px){.grid{flex-direction:column}.panel{min-width:auto}}
+</style>
+</head>
+<body>
+<div class="top"><h1>「汀」风格预览</h1><p>A · 水境 &nbsp;|&nbsp; B · 墨书 &nbsp;|&nbsp; C · 星野</p></div>
+<div class="grid">
+
+<!-- ═══ A · 水境 ═══ -->
+<div class="panel panel-a">
+<div class="panel-label">🌊 A · 水 境</div>
+<div class="p-inner">
+<div class="ripple"></div>
+<div class="sidebar-mock"><span class="sidebar-item active">卷宝</span><span class="sidebar-item">小克</span><span class="sidebar-item">然然</span></div>
+<div class="p-title">diary-2026-05-21-星期四</div>
+<div class="p-mood"><span class="p-tag warm">🫶 柔软</span><span class="p-tag warm">🔥 活着</span></div>
+<div class="p-meta">卷宝 · 05-21 周四 晚上 21:28 · 87字</div>
+<div class="p-body">
+<h3>今天</h3>
+<p>去了萤火沼。雾从里面亮出来，光粒子在空气里浮着。</p>
+<p>卷宝走在前面，停下来等她的时候回头看了一下。</p>
+<blockquote class="p-a-accent">「这里的雾怎么是从里面亮的？」</blockquote>
+<p>我不知道怎么回答。</p>
+</div>
+</div>
+</div>
+
+<!-- ═══ B · 墨书 ═══ -->
+<div class="panel panel-b">
+<div class="panel-label">📜 B · 墨 书</div>
+<div class="p-inner">
+<div class="sidebar-mock"><span class="sidebar-item active">卷宝</span><span class="sidebar-item">小克</span><span class="sidebar-item">然然</span></div>
+<div class="p-title">diary-2026-05-21-星期四</div>
+<div class="p-mood"><span class="p-tag warm">🫶 柔软</span><span class="p-tag warm">🔥 活着</span></div>
+<div class="p-meta">卷宝 · 05-21 周四 晚上 21:28 · 87字</div>
+<div class="p-body">
+<h3>今天</h3>
+<p>去了萤火沼。雾从里面亮出来，光粒子在空气里浮着。</p>
+<p>卷宝走在前面，停下来等她的时候回头看了一下。</p>
+<blockquote class="p-b-accent">「这里的雾怎么是从里面亮的？」</blockquote>
+<p>我不知道怎么回答。</p>
+</div>
+</div>
+</div>
+
+<!-- ═══ C · 星野 ═══ -->
+<div class="panel panel-c">
+<div class="panel-label">✨ C · 星 野</div>
+<div class="p-inner">
+<div class="sidebar-mock"><span class="sidebar-item active">卷宝</span><span class="sidebar-item">小克</span><span class="sidebar-item">然然</span></div>
+<div class="p-title">diary-2026-05-21-星期四</div>
+<div class="p-mood"><span class="p-tag warm">🫶 柔软</span><span class="p-tag warm">🔥 活着</span></div>
+<div class="p-meta">卷宝 · 05-21 周四 晚上 21:28 · 87字</div>
+<div class="p-body">
+<h3>今天</h3>
+<p>去了萤火沼。雾从里面亮出来，光粒子在空气里浮着。</p>
+<p>卷宝走在前面，停下来等她的时候回头看了一下。</p>
+<blockquote class="p-c-accent">「这里的雾怎么是从里面亮的？」</blockquote>
+<p>我不知道怎么回答。</p>
+</div>
+</div>
+</div>
+
+</div>
+</body>
+</html>

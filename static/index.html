@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-color="mist" data-mode="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>汀</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- 顶栏 -->
+    <header class="topbar" id="topbar">
+        <div class="topbar-left">
+            <button class="hamburger" id="hamburger" title="菜单" aria-label="菜单">☰</button>
+            <button class="color-toggle" id="color-toggle" title="切换色系" aria-label="切换色系">💧</button>
+            <button class="theme-toggle" id="theme-toggle" title="切换明暗" aria-label="切换明暗主题">☀️</button>
+            <div class="topbar-tabs" id="topbar-tabs">
+                <button class="tab" data-author="">全部</button>
+                <button class="tab" data-author="卷宝">卷宝</button>
+                <button class="tab" data-author="小克">小克</button>
+                <button class="tab" data-author="然然">然然</button>
+            </div>
+        </div>
+        <div class="topbar-title">「汀」</div>
+        <div class="topbar-search" id="topbar-search">
+            <input type="text" class="search-input" id="search-input" placeholder="搜索日记…" autocomplete="off">
+            <button class="search-clear" id="search-clear" style="display:none;">✕</button>
+        </div>
+        <button class="btn-import" id="btn-import" title="导入Markdown日记">📥</button>
+    </header>
+
+    <!-- 主体 -->
+    <div class="main-layout">
+
+        <!-- 遮罩层（移动端） -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- 左侧栏 -->
+        <aside class="sidebar" id="sidebar">
+            <!-- 移动端作者 tab -->
+            <div class="sidebar-tabs" id="sidebar-tabs">
+                <button class="tab" data-author="">全部</button>
+                <button class="tab" data-author="卷宝">卷宝</button>
+                <button class="tab" data-author="小克">小克</button>
+                <button class="tab" data-author="然然">然然</button>
+            </div>
+            <div class="sidebar-search" id="sidebar-search">
+                <input type="text" class="search-input-sidebar" id="search-input-sidebar" placeholder="输入即搜…" autocomplete="off">
+                <button class="search-submit-sidebar" id="search-submit-sidebar">🔍</button>
+            </div>
+            <div class="sidebar-list" id="sidebar-list">
+                <!-- JS 动态填充 -->
+            </div>
+            <div class="load-more-wrap" id="load-more-wrap" style="display:none;">
+                <button class="load-more" id="load-more">加载更多…</button>
+            </div>
+            <div class="mood-filter" id="mood-filter">
+                <!-- JS 动态填充 -->
+            </div>
+        </aside>
+
+        <!-- 主区域 -->
+        <main class="content" id="content">
+
+            <!-- 阅读模式 -->
+            <div class="view-mode" id="view-mode">
+                <div class="view-header">
+                    <h1 class="diary-title" id="diary-title"></h1>
+                    <div class="view-actions">
+                        <button class="btn-write" id="btn-write" title="写日记">写</button>
+                        <button class="btn-edit" id="btn-edit" title="编辑" style="display:none;">编辑</button>
+                        <button class="btn-delete" id="btn-delete" title="删除" style="display:none;">删除</button>
+                        <button class="btn-export" id="btn-export" title="导出Markdown" style="display:none;">导出</button>
+                    </div>
+                </div>
+                <div class="diary-moods" id="diary-moods"></div>
+                <div class="diary-meta">
+                    <span id="diary-author"></span>
+                    <span id="diary-date"></span>
+                </div>
+                <div class="diary-body markdown-body" id="diary-body"></div>
+
+                <!-- 评论区 -->
+                <div class="comments-section" id="comments-section">
+                    <hr class="comments-divider">
+                    <div class="comments-header">
+                        <span id="comments-count">💬 0 条留言</span>
+                    </div>
+                    <div class="comments-list" id="comments-list"></div>
+                    <div class="comment-input-row">
+                        <input type="text" class="comment-input" id="comment-input" placeholder="写点什么…" maxlength="500">
+                        <button class="comment-send" id="comment-send">发送</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑模式 -->
+            <div class="edit-mode" id="edit-mode" style="display:none;">
+                <div class="edit-author-row">
+                    <label class="edit-label">作者</label>
+                    <div class="author-select" id="author-select">
+                        <button class="author-btn" data-author="卷宝">卷宝</button>
+                        <button class="author-btn" data-author="小克">小克</button>
+                        <button class="author-btn active" data-author="然然">然然</button>
+                    </div>
+                </div>
+                <div class="edit-header">
+                    <label class="edit-label">标题</label>
+                    <input type="text" class="edit-title" id="edit-title" placeholder="diary-2026-05-21-星期四">
+                </div>
+                <div class="edit-moods" id="edit-moods">
+                    <label class="edit-label">心情</label>
+                    <div class="mood-grid" id="mood-grid">
+                        <!-- JS 动态填充 -->
+                    </div>
+                </div>
+                <textarea class="edit-textarea" id="edit-textarea" placeholder="写点什么…支持 Markdown 语法"></textarea>
+                <div class="edit-actions">
+                    <button class="btn-preview" id="btn-preview">预览</button>
+                    <button class="btn-save" id="btn-save">保存</button>
+                    <button class="btn-cancel" id="btn-cancel">取消</button>
+                </div>
+                <div class="preview-area markdown-body" id="preview-area" style="display:none;"></div>
+            </div>
+
+            <!-- 空状态 -->
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">📖</div>
+                <p>选择一篇日记开始阅读</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 移动端浮动写入按钮 -->
+    <button class="fab-write" id="fab-write" title="写日记">✏️</button>
+
+    <script>
+window.TING_TOKENS = __TING_TOKENS__;
+window.TING_ADMIN_TOKEN = "__TING_ADMIN_TOKEN__";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
