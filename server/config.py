@@ -1,5 +1,6 @@
-"""「汀」配置文件 """
+"""「汀」配置文件。"""
 
+import json
 import os
 
 # ─── 加载 .env 文件 ────────────────────────────────────
@@ -19,24 +20,48 @@ def _load_env():
 
 _load_env()
 
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "diary.db")
+DATABASE_PATH = os.getenv(
+    "TING_DATABASE_PATH",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "diary.db"),
+)
+
+
+def _parse_members(raw: str) -> dict[str, str]:
+    """解析成员名到 token 的 JSON 映射。"""
+    if not raw.strip():
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("TING_MEMBERS 必须是 JSON 对象，例如 {\"成员一\":\"token\"}") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError("TING_MEMBERS 必须是成员名到 token 的 JSON 对象")
+
+    members: dict[str, str] = {}
+    used_tokens: set[str] = set()
+    for raw_name, raw_token in value.items():
+        name = str(raw_name).strip()
+        token = str(raw_token).strip()
+        if not name or not token:
+            raise RuntimeError("TING_MEMBERS 中的成员名和 token 不能为空")
+        if name.lower() == "admin":
+            raise RuntimeError("成员名不能使用保留名称 admin")
+        if token in used_tokens:
+            raise RuntimeError("TING_MEMBERS 中的 token 不能重复")
+        members[name] = token
+        used_tokens.add(token)
+    return members
+
+
+MEMBERS = _parse_members(os.getenv("TING_MEMBERS", ""))
 
 def _load_tokens():
     """从环境变量加载 token 映射。"""
-    tokens = {}
-    # 作者 token 映射（中文名 -> .env 中的拼音键）
-    author_env_keys = {
-        "卷宝": "TING_TOKEN_JUANBAO",
-        "小克": "TING_TOKEN_XIAOKE",
-        "然然": "TING_TOKEN_RANRAN",
-    }
-    for author, env_key in author_env_keys.items():
-        val = os.getenv(env_key, "")
-        if val:
-            tokens[val] = author
-    # Admin token
-    admin_val = os.getenv("TING_ADMIN_TOKEN", "")
+    tokens = {token: name for name, token in MEMBERS.items()}
+    admin_val = os.getenv("TING_ADMIN_TOKEN", "").strip()
     if admin_val:
+        if admin_val in tokens:
+            raise RuntimeError("TING_ADMIN_TOKEN 不能与成员 token 重复")
         tokens[admin_val] = "admin"
     return tokens
 

@@ -1,15 +1,13 @@
 /* ═══════════════════════════════════════════════
-   「汀」App JS  v1.2
+   「汀」App JS  v2.0
    ═══════════════════════════════════════════════ */
 
 // ─── Config ────────────────────────────────────
 const API_BASE = '';
-const TOKENS = window.TING_TOKENS || {};
-const ADMIN_TOKEN = window.TING_ADMIN_TOKEN || '';
-const CURRENT_AUTHOR = Object.keys(TOKENS)[0] || '然然';
+const SESSION_TOKEN_KEY = 'ting-session-token';
 
 // ─── Moods ─────────────────────────────────────
-const MOODS = {
+let MOODS = {
     happy:     { emoji: '😊', label: '开心',   group: 'daily',    color: 'warm' },
     neutral:   { emoji: '🫥', label: '平静',   group: 'daily',    color: 'cool' },
     tired:     { emoji: '🫠', label: '疲惫',   group: 'daily',    color: 'cool' },
@@ -31,7 +29,12 @@ const MOODS = {
 let state = {
     colorScheme: localStorage.getItem('ting-color') || 'mist',
     theme: localStorage.getItem('ting-theme') || 'light',
-    selectedAuthor: '然然',
+    members: [],
+    authToken: sessionStorage.getItem(SESSION_TOKEN_KEY) || '',
+    currentAuthor: null,
+    isAdmin: false,
+    appLoaded: false,
+    pendingAction: null,
     filterAuthor: '',
     filterMood: '',
     filterSearch: '',
@@ -56,7 +59,15 @@ const dom = {
     colorToggle: $('#color-toggle'),
     themeToggle: $('#theme-toggle'),
     btnImport: $('#btn-import'),
-    authorSelect: $('#author-select'),
+    topbarTabs: $('#topbar-tabs'),
+    sidebarTabs: $('#sidebar-tabs'),
+    identityButton: $('#identity-button'),
+    identityDialog: $('#identity-dialog'),
+    identityForm: $('#identity-form'),
+    identityToken: $('#identity-token'),
+    identityError: $('#identity-error'),
+    identityCancel: $('#identity-cancel'),
+    identitySignout: $('#identity-signout'),
     hamburger: $('#hamburger'),
     overlay: $('#overlay'),
     sidebar: $('#sidebar'),
@@ -65,6 +76,8 @@ const dom = {
     viewMode: $('#view-mode'),
     editMode: $('#edit-mode'),
     emptyState: $('#empty-state'),
+    emptyTitle: $('#empty-title'),
+    emptyDescription: $('#empty-description'),
     diaryTitle: $('#diary-title'),
     diaryMoods: $('#diary-moods'),
     diaryAuthor: $('#diary-author'),
@@ -87,6 +100,7 @@ const dom = {
     commentInput: $('#comment-input'),
     commentSend: $('#comment-send'),
     editTitle: $('#edit-title'),
+    editIdentity: $('#edit-identity'),
     editTextarea: $('#edit-textarea'),
     moodGrid: $('#mood-grid'),
     btnPreview: $('#btn-preview'),
@@ -153,23 +167,119 @@ function wordCount(text) {
 }
 
 async function api(path, options = {}) {
-    const headers = options.headers || {};
-    if (['POST', 'PUT', 'DELETE'].includes(options.method || 'GET')) {
-        // POST = 创建日记/评论 → 当前选择的作者
-        // PUT/DELETE = 编辑/删除 → 管理员权限
-        // 导入使用 ADMIN_TOKEN（调用时自己传 headers）
-        const token = (options.method === 'POST') ? (TOKENS[state.selectedAuthor] || TOKENS['然然']) : ADMIN_TOKEN;
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (!(options.body instanceof FormData)) {
+    const { token = state.authToken, ...fetchOptions } = options;
+    const headers = { ...(fetchOptions.headers || {}) };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
-    const res = await fetch(API_BASE + path, { ...options, headers });
+    const res = await fetch(API_BASE + path, { ...fetchOptions, headers });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
         throw new Error(err.detail || `HTTP ${res.status}`);
     }
     return res.json();
+}
+
+function renderMarkdown(source) {
+    const plain = esc(source || '').replace(/\n/g, '<br>');
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') return plain;
+    return DOMPurify.sanitize(marked.parse(source || ''));
+}
+
+function openIdentityDialog(nextAction = null) {
+    state.pendingAction = nextAction;
+    dom.identityError.textContent = '';
+    dom.identityToken.value = '';
+    dom.identitySignout.hidden = !state.currentAuthor;
+    if (typeof dom.identityDialog.showModal === 'function') {
+        dom.identityDialog.showModal();
+    } else {
+        dom.identityDialog.setAttribute('open', '');
+    }
+    requestAnimationFrame(() => dom.identityToken.focus());
+}
+
+function closeIdentityDialog() {
+    state.pendingAction = null;
+    dom.identityDialog.close();
+}
+
+function ensureMember(nextAction) {
+    if (state.currentAuthor && !state.isAdmin) return true;
+    openIdentityDialog(nextAction);
+    if (state.isAdmin) dom.identityError.textContent = '管理员身份不能写作，请改用成员令牌。';
+    return false;
+}
+
+async function applyIdentity(token) {
+    const session = await api('/api/session', { token });
+    state.authToken = token;
+    state.currentAuthor = session.author;
+    state.isAdmin = Boolean(session.is_admin);
+    sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+    refreshIdentityUI();
+}
+
+async function restoreIdentity() {
+    if (!state.authToken) {
+        refreshIdentityUI();
+        return false;
+    }
+    try {
+        await applyIdentity(state.authToken);
+        return true;
+    } catch (_error) {
+        signOut();
+        return false;
+    }
+}
+
+function signOut() {
+    state.authToken = '';
+    state.currentAuthor = null;
+    state.isAdmin = false;
+    state.appLoaded = false;
+    state.members = [];
+    state.diaries = [];
+    state.comments = [];
+    state.currentDiary = null;
+    state.selectedId = null;
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    renderMemberTabs();
+    dom.sidebarList.innerHTML = '';
+    dom.viewMode.style.display = 'none';
+    dom.editMode.style.display = 'none';
+    dom.emptyState.style.display = 'flex';
+    dom.emptyTitle.textContent = '选择身份进入共享日记';
+    dom.emptyDescription.textContent = '使用维护者为你分配的成员令牌。';
+    refreshIdentityUI();
+}
+
+function refreshIdentityUI() {
+    dom.identityButton.textContent = state.currentAuthor
+        ? (state.isAdmin ? '管理员' : state.currentAuthor)
+        : '选择身份';
+    dom.identityButton.classList.toggle('active', Boolean(state.currentAuthor));
+    dom.editIdentity.textContent = state.currentAuthor && !state.isAdmin
+        ? `以「${state.currentAuthor}」的身份写作`
+        : '';
+    dom.commentInput.disabled = !state.currentAuthor || state.isAdmin;
+    dom.commentSend.disabled = !state.currentAuthor || state.isAdmin;
+    dom.commentInput.placeholder = state.currentAuthor && !state.isAdmin
+        ? '写点什么…'
+        : '选择成员身份后留言';
+    if (state.currentDiary) updateActionPermissions(state.currentDiary);
+    if (state.comments.length) renderComments();
+}
+
+function updateActionPermissions(diary) {
+    const canManage = Boolean(
+        state.currentAuthor && (state.isAdmin || state.currentAuthor === diary.author)
+    );
+    dom.btnEdit.style.display = canManage ? 'inline-block' : 'none';
+    dom.btnDelete.style.display = canManage ? 'inline-block' : 'none';
+    dom.btnExport.style.display = 'inline-block';
 }
 
 // ─── Visual (Color + Mode) ────────────────────
@@ -194,6 +304,34 @@ function toggleColorScheme() {
 }
 
 // ─── Sidebar & Tabs ────────────────────────────
+
+const MEMBER_ACCENTS = [
+    'var(--accent-orange)',
+    'var(--accent-teal)',
+    'var(--accent-rose)',
+    'var(--accent-purple)'
+];
+
+function authorColor(author) {
+    const index = state.members.indexOf(author);
+    return index >= 0 ? MEMBER_ACCENTS[index % MEMBER_ACCENTS.length] : 'var(--text-secondary)';
+}
+
+function renderMemberTabs() {
+    [dom.topbarTabs, dom.sidebarTabs].forEach(container => {
+        container.innerHTML = '';
+        ['', ...state.members].forEach(author => {
+            const button = document.createElement('button');
+            button.className = 'tab';
+            button.dataset.author = author;
+            button.textContent = author || '全部';
+            button.style.setProperty('--member-accent', authorColor(author));
+            button.classList.toggle('active', state.filterAuthor === author);
+            button.addEventListener('click', () => setActiveTab(author));
+            container.appendChild(button);
+        });
+    });
+}
 
 function setActiveTab(author) {
     state.filterAuthor = author;
@@ -233,7 +371,7 @@ function renderSidebar() {
 
         div.innerHTML = `
             <div class="si-top">
-                <span class="si-author">${esc(d.author)}</span>
+                <span class="si-author" style="color:${authorColor(d.author)}">${esc(d.author)}</span>
                 <span class="si-date">${shortDate(d.created_at)} · ${wordCount(d.preview || '')}字</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
@@ -248,10 +386,42 @@ function renderSidebar() {
 
 function esc(s) {
     if (!s) return '';
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '"');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ─── Diary List & Selection ────────────────────
+
+async function loadConfig() {
+    const config = await api('/api/config');
+    state.members = Array.isArray(config.members) ? config.members : [];
+    if (config.moods && typeof config.moods === 'object') MOODS = config.moods;
+    renderMemberTabs();
+}
+
+async function finishBootstrap() {
+    await loadConfig();
+    await loadDiaryList();
+    state.appLoaded = true;
+}
+
+function refreshEmptyState() {
+    if (state.members.length === 0) {
+        dom.emptyTitle.textContent = '还没有配置成员';
+        dom.emptyDescription.textContent = '请在 .env 中设置 TING_MEMBERS，然后重新启动服务。';
+        dom.btnWrite.disabled = true;
+        dom.fabWrite.disabled = true;
+        return;
+    }
+    dom.btnWrite.disabled = false;
+    dom.fabWrite.disabled = false;
+    if (state.totalDiaries === 0) {
+        dom.emptyTitle.textContent = '共享的日子，从这里汇流';
+        dom.emptyDescription.textContent = '以成员身份写下第一篇日记。';
+    } else {
+        dom.emptyTitle.textContent = '选择一篇日记开始阅读';
+        dom.emptyDescription.textContent = '可以按成员、心情或关键词筛选。';
+    }
+}
 
 async function loadDiaryList(append = false) {
     if (!append) {
@@ -283,6 +453,7 @@ async function loadDiaryList(append = false) {
         renderSidebar();
         renderMoodFilter();
         updateLoadMore();
+        refreshEmptyState();
     } catch (e) {
         console.error('加载日记列表失败:', e);
     }
@@ -379,33 +550,20 @@ function showViewMode(diary) {
     const wc = wordCount(diary.content);
     dom.diaryDate.textContent = formatDate(diary.created_at) + ` · ${wc}字`;
 
-    // Markdown (safe fallback)
-    try {
-        dom.diaryBody.innerHTML = (typeof marked !== 'undefined') ? marked.parse(diary.content || '') : esc(diary.content).replace(/\n/g, '<br>');
-    } catch (e) {
-        dom.diaryBody.innerHTML = esc(diary.content).replace(/\n/g, '<br>');
-    }
-
-    // Edit & Delete & Export buttons: admin can operate on all diaries
-    dom.btnEdit.style.display = 'inline-block';
-    dom.btnDelete.style.display = 'inline-block';
-    dom.btnExport.style.display = 'inline-block';
+    dom.diaryBody.innerHTML = renderMarkdown(diary.content);
 
     // Store current diary for export
     state.currentDiary = diary;
+    updateActionPermissions(diary);
 
     // Scroll content to top
     dom.content.scrollTop = 0;
 }
 
-function authorColor(author) {
-    const map = { '卷宝': 'var(--accent-orange)', '小克': 'var(--accent-teal)', '然然': 'var(--accent-rose)' };
-    return map[author] || 'var(--text-secondary)';
-}
-
 // ─── Edit / Write Mode ─────────────────────────
 
 function openWriteMode() {
+    if (!ensureMember(openWriteMode)) return;
     state.editingId = null;
     state.selectedMoods = new Set();
     state.previewVisible = false;
@@ -421,6 +579,8 @@ function openWriteMode() {
 
 async function openEditMode() {
     if (!state.selectedId) return;
+    if (!state.currentDiary || !state.currentAuthor ||
+        (!state.isAdmin && state.currentAuthor !== state.currentDiary.author)) return;
     try {
         const diary = await api(`/api/diary/${state.selectedId}`);
         diary.moods = typeof diary.moods === 'string' ? diary.moods.split(',').filter(Boolean) : (diary.moods || []);
@@ -428,9 +588,9 @@ async function openEditMode() {
         state.editingId = diary.id;
         state.selectedMoods = new Set(diary.moods);
         state.previewVisible = false;
-
-        // Set author selector to current diary author
-        setAuthor(diary.author);
+        dom.editIdentity.textContent = state.isAdmin
+            ? `以管理员身份编辑「${diary.author}」的日记`
+            : `以「${state.currentAuthor}」的身份写作`;
 
         dom.editTitle.value = diary.title;
         dom.editTextarea.value = diary.content;
@@ -523,8 +683,7 @@ function renderMoodGrid() {
 
 function togglePreview() {
     if (!state.previewVisible) {
-        const html = marked.parse(dom.editTextarea.value || '');
-        dom.previewArea.innerHTML = html;
+        dom.previewArea.innerHTML = renderMarkdown(dom.editTextarea.value);
         dom.previewArea.style.display = 'block';
         dom.btnPreview.textContent = '编辑';
         state.previewVisible = true;
@@ -546,29 +705,22 @@ async function saveDiary() {
     }
 
     try {
+        let savedId = state.editingId;
         if (state.editingId) {
-            // Update
             await api(`/api/diary/${state.editingId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ title, content, moods, author: state.selectedAuthor })
+                body: JSON.stringify({ title, content, moods })
             });
         } else {
-            // Create
-            await api('/api/diary', {
+            const created = await api('/api/diary', {
                 method: 'POST',
                 body: JSON.stringify({ title, content, moods })
             });
+            savedId = created.id;
         }
         cancelEdit();
         await loadDiaryList();
-        // If we just created a new diary, select the latest
-        if (!state.editingId && state.diaries.length > 0) {
-            // Find the first diary matching our title (most recent match)
-            const match = state.diaries.find(d => d.author === CURRENT_AUTHOR);
-            if (match) await selectDiary(match.id);
-        } else if (state.editingId) {
-            await selectDiary(state.editingId);
-        }
+        if (savedId) await selectDiary(savedId);
     } catch (e) {
         alert('保存失败: ' + e.message);
     }
@@ -594,28 +746,33 @@ function renderComments() {
     state.comments.forEach(c => {
         const div = document.createElement('div');
         div.className = 'comment-item';
+        const canDelete = Boolean(
+            state.currentAuthor && (state.isAdmin || state.currentAuthor === c.author)
+        );
 
         div.innerHTML = `
             <div class="comment-meta">
-                <span class="comment-author" data-author="${esc(c.author)}">${esc(c.author)}</span>
+                <span class="comment-author" style="color:${authorColor(c.author)}">${esc(c.author)}</span>
                 <span>· ${shortDate(c.created_at)}</span>
-                <button class="comment-delete" data-comment-id="${c.id}">×</button>
+                ${canDelete ? `<button class="comment-delete" data-comment-id="${c.id}" aria-label="删除这条留言">×</button>` : ''}
             </div>
             <div class="comment-body">${esc(c.content)}</div>
         `;
 
-        // Delete handler (admin can delete any comment)
         const delBtn = div.querySelector('.comment-delete');
-        delBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await deleteComment(c.id);
-        });
+        if (delBtn) {
+            delBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await deleteComment(c.id);
+            });
+        }
 
         dom.commentsList.appendChild(div);
     });
 }
 
 async function sendComment() {
+    if (!ensureMember(() => sendComment())) return;
     const content = dom.commentInput.value.trim();
     if (!content) return;
     if (!state.selectedId) return;
@@ -674,25 +831,11 @@ function onSearchInput(e) {
     searchTimer = setTimeout(() => doSearch(value), DEBOUNCE_MS);
 }
 
-// ─── Author Selection ──────────────────────────
-
-function setAuthor(author) {
-    state.selectedAuthor = author;
-    $$('.author-btn').forEach(b => b.classList.toggle('active', b.dataset.author === author));
-}
-
 // ─── Import Markdown ────────────────────────────
 
 function openImport() {
-    // Step 1: Choose author via reliable confirm
-    let importAuthor = '然然';
-    if (confirm('📥 导入日记 — 选择作者\n\n「确定」= 卷宝\n「取消」= 下一位')) {
-        importAuthor = '卷宝';
-    } else if (confirm('📥 导入日记 — 选择作者\n\n「确定」= 小克\n「取消」= 然然（默认）')) {
-        importAuthor = '小克';
-    }
-
-    // Step 2: Pick files
+    if (!ensureMember(openImport)) return;
+    const importAuthor = state.currentAuthor;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.md,.markdown,.txt';
@@ -701,33 +844,19 @@ function openImport() {
         const files = input.files;
         if (!files.length) return;
         const entries = [];
-        let usedFrontmatterAuthor = false;
         for (const file of files) {
             const text = await file.text();
             const entry = parseMarkdownEntry(text, file.name, importAuthor);
-            if (entry) {
-                if (entry.author !== importAuthor) usedFrontmatterAuthor = true;
-                entries.push(entry);
-            }
+            if (entry) entries.push(entry);
         }
         if (!entries.length) { alert('未解析到有效日记'); return; }
-        let msg = `将导入 ${entries.length} 篇日记`;
-        if (usedFrontmatterAuthor) {
-            msg += '\n（部分日记通过 YAML frontmatter 指定了作者，已自动识别）';
-        } else {
-            msg += `，作者均为「${importAuthor}」`;
-        }
-        msg += '，确定？';
+        const msg = `将以「${importAuthor}」的身份导入 ${entries.length} 篇日记，确定？`;
         if (!confirm(msg)) return;
         try {
-            // Import uses admin token
-            const headers = { 'Authorization': `Bearer ${ADMIN_TOKEN}`, 'Content-Type': 'application/json' };
-            const res = await fetch(API_BASE + '/api/diary/import', {
-                method: 'POST', headers,
+            const data = await api('/api/diary/import', {
+                method: 'POST',
                 body: JSON.stringify({ entries })
             });
-            if (!res.ok) throw new Error((await res.json()).detail || '导入失败');
-            const data = await res.json();
             alert(`成功导入 ${data.count} 篇日记`);
             await loadDiaryList();
         } catch (e) { alert('导入失败: ' + e.message); }
@@ -753,7 +882,6 @@ function parseMarkdownEntry(text, filename, importAuthor) {
             if (kv) {
                 const k = kv[1].trim(), v = kv[2].trim();
                 if (k === 'title') title = v;
-                if (k === 'author') author = v || author;
                 if (k === 'date' || k === 'created_at') created_at = v;
                 if (k === 'moods') moods = v.split(',').map(s => s.trim()).filter(Boolean);
             }
@@ -790,20 +918,35 @@ function closeSidebar() {
     dom.overlay.classList.remove('show');
 }
 
+async function submitIdentity(event) {
+    event.preventDefault();
+    const token = dom.identityToken.value.trim();
+    if (!token) return;
+    dom.identityError.textContent = '';
+    const submitButton = dom.identityForm.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    try {
+        await applyIdentity(token);
+        const nextAction = state.pendingAction;
+        state.pendingAction = null;
+        dom.identityDialog.close();
+        if (!state.appLoaded) await finishBootstrap();
+        if (nextAction) await nextAction();
+    } catch (_error) {
+        dom.identityError.textContent = '令牌无效，请检查后重试。';
+        dom.identityToken.select();
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
 // ─── Init ──────────────────────────────────────
 
-function init() {
+async function init() {
     // Visual
     applyVisual();
     dom.themeToggle.addEventListener('click', toggleMode);
     dom.colorToggle.addEventListener('click', toggleColorScheme);
-
-    // Tabs (topbar + sidebar)
-    $$('.tab').forEach(tab => {
-        tab.addEventListener('click', () => setActiveTab(tab.dataset.author));
-    });
-    // Default: all tab active
-    setActiveTab('');
 
     // Hamburger
     dom.hamburger.addEventListener('click', openSidebar);
@@ -812,9 +955,17 @@ function init() {
     // Import
     dom.btnImport.addEventListener('click', openImport);
 
-    // Author selection
-    $$('.author-btn').forEach(btn => {
-        btn.addEventListener('click', () => setAuthor(btn.dataset.author));
+    // Identity
+    dom.identityButton.addEventListener('click', () => openIdentityDialog());
+    dom.identityForm.addEventListener('submit', submitIdentity);
+    dom.identityCancel.addEventListener('click', closeIdentityDialog);
+    dom.identitySignout.addEventListener('click', () => {
+        signOut();
+        dom.identityDialog.close();
+        openIdentityDialog();
+    });
+    dom.identityDialog.addEventListener('cancel', () => {
+        state.pendingAction = null;
     });
 
     // Write button
@@ -857,11 +1008,24 @@ function init() {
     // Comment
     dom.commentSend.addEventListener('click', sendComment);
     dom.commentInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendComment();
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendComment();
+        }
     });
 
-    // Load diary list
-    loadDiaryList();
+    try {
+        const restored = await restoreIdentity();
+        if (restored) {
+            await finishBootstrap();
+        } else {
+            openIdentityDialog();
+        }
+    } catch (error) {
+        console.error('初始化失败:', error);
+        dom.emptyTitle.textContent = '暂时无法载入日记';
+        dom.emptyDescription.textContent = '请检查服务配置后刷新页面。';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', init);

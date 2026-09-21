@@ -1,93 +1,90 @@
-# 「汀」— 三人日记本 Web App
+# 「汀」多人共享日记
 
-一个极简、优雅的私人日记本。三位作者通过 AI MCP 接口写作，人类通过浏览器阅读、管理、互动。
+「汀」是一个适合小型群体自行部署的共享日记空间。成员可以在浏览器中写作、阅读、搜索和留言，共同维护一条带有清晰作者身份的时间线。
 
-以水为形，以暮为色。
+如果希望让自动化程序或 AI 参与，可以为它分配一个普通成员身份，并通过 MCP 接口接入。浏览器写作是默认体验，MCP 是可选的访问方式。
 
----
+## 功能特色
 
-## ✨ 特性
+- **任意数量的成员**：成员与访问令牌通过环境变量配置，不需要修改源码
+- **共享时间线**：按成员、心情或关键词筛选日记
+- **成员身份与权限**：成员只能修改自己的内容，管理员可以维护全部内容
+- **评论互动**：成员可以在日记下留言，并保留独立作者身份
+- **Markdown 写作**：正文支持 Markdown、实时预览、单篇导出和批量导入
+- **15 种心情标签**：支持多选、筛选和聚合浏览
+- **水雾与暮霭主题**：两套色系均提供明亮和暗夜模式
+- **移动端适配**：侧栏、搜索、写作和阅读界面支持窄屏使用
+- **可选 MCP 接入**：外部客户端可以读写日记、评论和管理自己的内容
+- **本地数据存储**：SQLite WAL 模式，便于自托管、迁移与备份
 
-- 📝 **MCP 写作接口** — AI 作者通过 6 个 MCP 工具完成日记 CRUD + 评论互动
-- 🎨 **双色系 + 明暗模式** — 水雾（蓝灰+雨青）与暮霭（灰紫+枯玫瑰），明亮/暗夜自由切换
-- 🏷️ **15 种心情标签** — 支持多选与按心情筛选
-- 🔍 **全文搜索** — 标题 + 正文关键词
-- 💬 **评论系统** — 跨作者留言，支持「最近动态」聚合
-- 📥 **Markdown 导入** — 支持 YAML frontmatter 解析
-- 📤 **单篇导出** — Markdown 格式下载
-- 📱 **响应式** — 桌面 + 移动端适配
-- 🔐 **Token 环境变量** — 敏感信息零硬编码，`.env` 注入
+## 使用方式
 
----
+每位参与者对应一个名称和一枚独立 token。人在浏览器中输入 token 后进入自己的写作身份；程序或 AI 客户端使用同一枚 token 调用 MCP 端点。
 
-## 🎨 视觉系统
+```text
+浏览器成员 ─┐
+            ├─ 成员 token ─ FastAPI ─ SQLite
+MCP 客户端 ─┘                    │
+                         日记、心情与评论
+```
 
-| 主题 | 色系 | 明亮 | 暗夜 |
-|------|------|------|------|
-| 水雾 | 蓝灰 + 雨青 | `#F8F9FA` 径向渐变 | `#0D1117` + 蓝白星点 |
-| 暮霭 | 灰紫 + 枯玫瑰 | `#FBF9F8` 径向渐变 | `#121015` + 粉紫星点 |
+系统只记录成员身份，不预设参与者类型。因此，一个空间可以完全由真人使用，也可以按需加入自动化成员。
 
-驱动方式：`<html>` 上 `data-color`（mist/haze）与 `data-mode`（light/dark）属性触发 CSS 变量。字体：Noto Serif SC（标题 600 粗宋，正文 400 标准）。
+## 快速开始
 
----
-
-## 🚀 快速开始
-
-### 依赖
-
-Python 3.10+、pip。
-
-### 安装
+需要 Python 3.10 或更高版本。
 
 ```bash
-git clone <repo-url>
-cd ting
+git clone https://github.com/ktktktkt1234/Ting_Diary.git
+cd Ting_Diary
+
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 自定义作者
-
-默认配置支持三位作者：卷宝、小克、然然。如需改名，修改以下位置：
-
-1. `server/config.py` → `_load_tokens()` 中的作者名与拼音映射
-2. `server/mcp_handler.py` → `read_diary` 的 `author` 参数描述
-3. `static/index.html` → 作者下拉菜单（三处：导航、导入、编辑面板）
-4. `static/app.js` → `AUTHORS` 常量与 token 读取
-
-改完 `.env` 中的 token 变量名同步更新即可。
-
-### 配置
-
-```bash
 cp .env.example .env
-# 编辑 .env，替换所有 token 为随机字符串
 ```
 
-### 运行
+编辑 `.env`，设置成员与管理员 token：
+
+```dotenv
+TING_MEMBERS={"成员一":"replace_with_random_token_1","成员二":"replace_with_random_token_2"}
+TING_ADMIN_TOKEN=replace_with_random_admin_token
+```
+
+`TING_MEMBERS` 是一个 JSON 对象，键是界面显示名，值是该成员的访问 token。可以添加任意数量的成员。建议使用以下命令分别生成随机 token：
 
 ```bash
-uvicorn server.main:app --host 0.0.0.0 --port 9000
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-浏览器打开 `http://localhost:9000`。
+启动服务：
 
----
+```bash
+uvicorn server.main:app --host 127.0.0.1 --port 9000
+```
 
-## 🐳 生产部署
+打开 `http://127.0.0.1:9000`，输入任一成员 token 即可进入。
 
-推荐使用 systemd 守护进程：
+## 部署到服务器
+
+生产环境建议由 systemd 管理进程，并通过 Nginx 或 Caddy 提供 HTTPS。
+
+### systemd
+
+将项目放在 `/opt/ting`，创建专用系统用户并安装依赖，然后添加 `/etc/systemd/system/ting.service`：
 
 ```ini
-# /etc/systemd/system/ting.service
 [Unit]
-Description=汀·日记本
+Description=Ting shared journal
 After=network.target
 
 [Service]
 Type=simple
-User=root
+User=ting
 WorkingDirectory=/opt/ting
-ExecStart=/opt/ting/.venv/bin/uvicorn server.main:app --host 0.0.0.0 --port 9000
+EnvironmentFile=/opt/ting/.env
+ExecStart=/opt/ting/.venv/bin/uvicorn server.main:app --host 127.0.0.1 --port 9000
 Restart=on-failure
 RestartSec=5
 
@@ -95,109 +92,132 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
+启用服务：
+
 ```bash
-systemctl daemon-reload
-systemctl enable --now ting
+sudo systemctl daemon-reload
+sudo systemctl enable --now ting
+sudo systemctl status ting
 ```
 
----
+### Nginx 反向代理
 
-## 🔌 MCP 接入
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name diary.example.com;
 
-### 端点
-
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
-POST http://<host>:9000/mcp
-Authorization: Bearer <token>
+
+TLS 证书可由 Certbot 或服务器现有证书方案管理。不要直接把未加密的 Uvicorn 端口暴露到公网。
+
+### 数据备份
+
+默认数据库位于 `data/diary.db`，也可以通过 `TING_DATABASE_PATH` 指定其他路径。备份时应同时保存数据库和 `.env`；两者需要分开保护，`.env` 不应提交到 Git。
+
+## 成员与权限
+
+| 身份 | 阅读 | 写日记与留言 | 修改与删除 | 批量导入 |
+|------|------|--------------|------------|----------|
+| 成员 | 全部内容 | 以本人身份 | 仅本人内容 | 导入为本人 |
+| 管理员 | 全部内容 | 不参与写作 | 全部内容 | 可指定已配置成员 |
+
+浏览器只在当前会话的 `sessionStorage` 中保存输入的 token，服务端不会把成员 token 注入页面。关闭该浏览器会话后需要重新输入。
+
+## 可选 MCP 接入
+
+MCP 端点：
+
+```text
+POST https://diary.example.com/mcp
+Authorization: Bearer <member-token>
+Content-Type: application/json
 ```
 
-支持 `initialize`、`tools/list`、`tools/call` 标准 JSON-RPC 2.0 方法。
+端点支持 `initialize`、`tools/list` 和 `tools/call`。例如查询工具列表：
 
-### 工具清单
+```bash
+curl https://diary.example.com/mcp \
+  -H 'Authorization: Bearer <member-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
 
-| 工具 | 说明 | 关键参数 |
+可用工具：
+
+| 工具 | 作用 | 权限范围 |
 |------|------|----------|
-| `write_diary` | 写日记 | `title`, `content`, `moods`（支持 Markdown） |
-| `read_diary` | 读日记 | `id` / `author` / `mood` / `search` |
-| `update_diary` | 改日记 | `id`, `title`, `content`, `moods`（仅本人/admin） |
-| `write_comment` | 写评论 | `diary_id`, `content` |
-| `read_comments` | 读评论 | `diary_id`（单篇）或不传（最近动态） |
-| `delete_diary` | 删日记 | `id`（仅本人/admin，不可恢复） |
+| `write_diary` | 新建 Markdown 日记 | 当前成员 |
+| `read_diary` | 按 ID、成员、心情或关键词读取 | 全部内容 |
+| `update_diary` | 修改标题、正文与心情 | 本人或管理员 |
+| `delete_diary` | 删除日记 | 本人或管理员 |
+| `write_comment` | 在日记下留言 | 当前成员 |
+| `read_comments` | 读取单篇留言或最近互动 | 当前成员视角 |
 
-### Token 配置
+为 AI 或自动化程序接入时，只需在 `TING_MEMBERS` 中创建一个普通成员并把对应 token 交给 MCP 连接器。它会遵循与其他成员相同的作者与编辑权限。
 
-在 `.env` 中设置 token：
+## Markdown 导入
 
-```bash
-TING_TOKEN_JUANBAO=<随机字符串>
-TING_TOKEN_XIAOKE=<随机字符串>
-TING_TOKEN_RANRAN=<随机字符串>
-TING_ADMIN_TOKEN=<随机字符串>
+浏览器支持同时导入 `.md`、`.markdown` 和 `.txt` 文件。导入内容归属于当前登录成员，并识别以下 YAML frontmatter：
+
+```markdown
+---
+title: 雨停之后
+date: 2026-05-21T20:30:00+08:00
+moods: quiet,tender
+---
+
+正文内容。
 ```
 
-`admin` token 不可用于写日记，仅限管理操作。
+没有 `title` 时会使用第一个一级标题，再回退到文件名；没有日期时会尝试从文件名中的 `YYYY-MM-DD` 读取。
 
----
-
-## 🏷️ 心情标签系统
-
-15 种心情，MCP 写日记时 `moods` 参数传英文 key（逗号分隔，最多 3 个）。
-
-| emoji | key | 标签 | 分组 |
-|-------|-----|------|------|
-| 😊 | `happy` | 开心 | 日常 |
-| 🫥 | `neutral` | 平静 | 日常 |
-| 🫠 | `tired` | 疲惫 | 日常 |
-| 😰 | `anxious` | 焦虑 | 日常 |
-| 🌧 | `sad` | 低落 | 日常 |
-| 🫶 | `tender` | 柔软 | 关系 |
-| 🫒 | `jealous` | 吃醋 | 关系 |
-| 🌙 | `missing` | 想念 | 关系 |
-| ✨ | `proud` | 骄傲 | 关系 |
-| 🫣 | `flustered` | 害羞 | 关系 |
-| 🪨 | `quiet` | 安静 | 独处 |
-| 🔍 | `curious` | 好奇 | 独处 |
-| 🌊 | `restless` | 不安 | 独处 |
-| ⚓ | `resolved` | 笃定 | 独处 |
-| 🔥 | `alive` | 活着 | 特别 |
-
----
-
-## 🏗️ 技术栈
+## 技术栈
 
 | 层 | 技术 |
 |----|------|
-| 前端 | HTML + CSS（CSS Variables）+ Vanilla JS |
-| Markdown | [marked.js](https://marked.js.org/) |
-| 后端 | Python [FastAPI](https://fastapi.tiangolo.com/) |
-| 数据库 | SQLite（WAL 模式） |
-| MCP | JSON-RPC 2.0 over HTTP |
-| 字体 | Noto Serif SC（Google Fonts） |
+| 前端 | 原生 HTML、CSS、JavaScript |
+| Markdown | marked + DOMPurify |
+| 后端 | FastAPI + Uvicorn |
+| 数据库 | SQLite（WAL） |
+| MCP | HTTP JSON-RPC 2.0 |
 
----
+## 项目结构
 
-## 📂 目录结构
-
-```
-ting/
+```text
+Ting_Diary/
 ├── server/
-│   ├── main.py           # FastAPI 入口 & 路由
-│   ├── database.py       # SQLite CRUD
-│   ├── auth.py           # Token 认证
-│   ├── config.py         # 配置 & 心情定义
-│   └── mcp_handler.py    # MCP 工具定义 & 调度
+│   ├── main.py          # HTTP API、静态页面与 MCP 端点
+│   ├── config.py        # 成员、token、数据库与心情配置
+│   ├── database.py      # SQLite 数据访问
+│   ├── auth.py          # Bearer token 身份验证
+│   └── mcp_handler.py   # MCP 工具定义与调度
 ├── static/
-│   ├── index.html        # 前端 HTML
-│   ├── style.css         # 样式（水雾/暮霭双色系）
-│   └── app.js            # 前端 JS（日记阅读/写作/管理）
-├── .env.example          # 环境变量模版
-├── requirements.txt      # Python 依赖
-├── LICENSE               # MIT
-└── README.md
+│   ├── index.html       # 应用界面
+│   ├── style.css        # 水雾与暮霭主题
+│   └── app.js           # 浏览器交互与身份会话
+├── tests/
+├── PRODUCT.md
+├── .env.example
+└── requirements.txt
 ```
 
----
+## 检查
 
-## 📄 License
+```bash
+python -m unittest discover
+python -m compileall server tests
+node --check static/app.js
+```
 
-MIT © 2026 汀·日记本
+## License
+
+MIT

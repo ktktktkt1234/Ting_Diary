@@ -20,19 +20,17 @@
             <button class="hamburger" id="hamburger" title="菜单" aria-label="菜单">☰</button>
             <button class="color-toggle" id="color-toggle" title="切换色系" aria-label="切换色系">💧</button>
             <button class="theme-toggle" id="theme-toggle" title="切换明暗" aria-label="切换明暗主题">☀️</button>
-            <div class="topbar-tabs" id="topbar-tabs">
-                <button class="tab" data-author="">全部</button>
-                <button class="tab" data-author="卷宝">卷宝</button>
-                <button class="tab" data-author="小克">小克</button>
-                <button class="tab" data-author="然然">然然</button>
-            </div>
+            <div class="topbar-tabs" id="topbar-tabs"></div>
         </div>
         <div class="topbar-title">「汀」</div>
-        <div class="topbar-search" id="topbar-search">
-            <input type="text" class="search-input" id="search-input" placeholder="搜索日记…" autocomplete="off">
-            <button class="search-clear" id="search-clear" style="display:none;">✕</button>
+        <div class="topbar-right">
+            <div class="topbar-search" id="topbar-search">
+                <input type="text" class="search-input" id="search-input" placeholder="搜索日记…" autocomplete="off">
+                <button class="search-clear" id="search-clear" style="display:none;" aria-label="清除搜索">✕</button>
+            </div>
+            <button class="identity-button" id="identity-button" type="button">选择身份</button>
+            <button class="btn-import" id="btn-import" title="导入 Markdown 日记" aria-label="导入 Markdown 日记">📥</button>
         </div>
-        <button class="btn-import" id="btn-import" title="导入Markdown日记">📥</button>
     </header>
 
     <!-- 主体 -->
@@ -44,12 +42,7 @@
         <!-- 左侧栏 -->
         <aside class="sidebar" id="sidebar">
             <!-- 移动端作者 tab -->
-            <div class="sidebar-tabs" id="sidebar-tabs">
-                <button class="tab" data-author="">全部</button>
-                <button class="tab" data-author="卷宝">卷宝</button>
-                <button class="tab" data-author="小克">小克</button>
-                <button class="tab" data-author="然然">然然</button>
-            </div>
+            <div class="sidebar-tabs" id="sidebar-tabs"></div>
             <div class="sidebar-search" id="sidebar-search">
                 <input type="text" class="search-input-sidebar" id="search-input-sidebar" placeholder="输入即搜…" autocomplete="off">
                 <button class="search-submit-sidebar" id="search-submit-sidebar">🔍</button>
@@ -102,14 +95,7 @@
 
             <!-- 编辑模式 -->
             <div class="edit-mode" id="edit-mode" style="display:none;">
-                <div class="edit-author-row">
-                    <label class="edit-label">作者</label>
-                    <div class="author-select" id="author-select">
-                        <button class="author-btn" data-author="卷宝">卷宝</button>
-                        <button class="author-btn" data-author="小克">小克</button>
-                        <button class="author-btn active" data-author="然然">然然</button>
-                    </div>
-                </div>
+                <div class="edit-identity" id="edit-identity"></div>
                 <div class="edit-header">
                     <label class="edit-label">标题</label>
                     <input type="text" class="edit-title" id="edit-title" placeholder="diary-2026-05-21-星期四">
@@ -132,7 +118,8 @@
             <!-- 空状态 -->
             <div class="empty-state" id="empty-state">
                 <div class="empty-icon">📖</div>
-                <p>选择一篇日记开始阅读</p>
+                <h2 id="empty-title">共享的日子，从这里汇流</h2>
+                <p id="empty-description">选择一篇日记阅读，或以成员身份写下第一篇。</p>
             </div>
         </main>
     </div>
@@ -140,11 +127,25 @@
     <!-- 移动端浮动写入按钮 -->
     <button class="fab-write" id="fab-write" title="写日记">✏️</button>
 
-    <script>
-window.TING_TOKENS = __TING_TOKENS__;
-window.TING_ADMIN_TOKEN = "__TING_ADMIN_TOKEN__";
-</script>
+    <dialog class="identity-dialog" id="identity-dialog" aria-labelledby="identity-title">
+        <form class="identity-form" id="identity-form">
+            <div>
+                <h2 id="identity-title">进入你的写作身份</h2>
+                <p>输入成员令牌。它只保存在当前浏览器会话中。</p>
+            </div>
+            <label for="identity-token">成员令牌</label>
+            <input id="identity-token" name="token" type="password" autocomplete="current-password" required>
+            <p class="identity-error" id="identity-error" role="alert"></p>
+            <div class="identity-actions">
+                <button class="dialog-secondary" id="identity-signout" type="button" hidden>退出身份</button>
+                <button class="dialog-secondary" id="identity-cancel" type="button">取消</button>
+                <button class="dialog-primary" type="submit">验证并进入</button>
+            </div>
+        </form>
+    </dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

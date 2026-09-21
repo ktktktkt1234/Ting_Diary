@@ -1,6 +1,6 @@
-"""MCP (Model Context Protocol) 处理模块
+"""MCP (Model Context Protocol) 可选接入层。
 
-兼容 SSE-based MCP，通过 POST /mcp 接受 JSON-RPC 风格请求。
+通过 POST /mcp 接受 JSON-RPC 2.0 请求。
 """
 
 import json
@@ -38,7 +38,7 @@ MOODS_HELP = """可选心情（逗号分隔，最多选3个）：
 TOOL_DEFS = [
     {
         "name": "write_diary",
-        "description": "写一篇新日记。标题自动生成（日期+星期），内容支持 Markdown。",
+        "description": "以当前成员身份写一篇新日记，内容支持 Markdown。",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -56,7 +56,7 @@ TOOL_DEFS = [
             "type": "object",
             "properties": {
                 "id": {"type": "integer", "description": "日记ID，不传则返回列表"},
-                "author": {"type": "string", "description": "按作者筛选：卷宝/小克/然然"},
+                "author": {"type": "string", "description": "按成员显示名筛选"},
                 "mood": {"type": "string", "description": "按心情筛选，如 tender/alive/quiet"},
                 "search": {"type": "string", "description": "全文搜索关键词"},
                 "limit": {"type": "integer", "default": 10, "description": "返回条数，默认10"},
@@ -140,7 +140,13 @@ def dispatch_tool(name: str, arguments: dict, author: str) -> dict[str, Any]:
             return {"diary": d}
         else:
             limit = arguments.get("limit", 10)
-            return db.list_diaries(author=None, limit=int(limit), offset=0)
+            return db.list_diaries(
+                author=arguments.get("author") or None,
+                mood=arguments.get("mood") or None,
+                search=arguments.get("search") or None,
+                limit=int(limit),
+                offset=0,
+            )
 
     elif name == "update_diary":
         diary_id = arguments.get("id")
@@ -211,7 +217,7 @@ def handle_mcp_request(body: dict, author: str) -> dict:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "ting-mcp", "version": "1.2.0"},
+                "serverInfo": {"name": "ting-mcp", "version": "2.0.0"},
             },
         }
 

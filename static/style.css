@@ -16,7 +16,7 @@
     --bg-secondary: #F0F3F6;
     --bg-sidebar:   #EBEFF3;
     --text-primary:   #2D2D2D;
-    --text-secondary: #7B8794;
+    --text-secondary: #5F6C78;
     --title-color:    #5B7282;
     --border:  #DDE3E8;
     --shadow:  rgba(0,0,0,.04);
@@ -38,7 +38,7 @@
     --bg-secondary: #131820;
     --bg-sidebar:   #10151D;
     --text-primary:   #C8CCD2;
-    --text-secondary: #6B7888;
+    --text-secondary: #98A3B1;
     --title-color:    #8798A5;
     --border:  #1E2530;
     --shadow:  rgba(0,0,0,.3);
@@ -77,7 +77,7 @@
     --bg-secondary: #F5F2F3;
     --bg-sidebar:   #EFEAEC;
     --text-primary:   #2D2D2D;
-    --text-secondary: #8A8086;
+    --text-secondary: #746970;
     --title-color:    #78636E;
     --border:  #E5DEE2;
     --shadow:  rgba(0,0,0,.04);
@@ -99,7 +99,7 @@
     --bg-secondary: #18151C;
     --bg-sidebar:   #151218;
     --text-primary:   #C8C4CA;
-    --text-secondary: #7A7680;
+    --text-secondary: #A09AA5;
     --title-color:    #9B8A96;
     --border:  #221E26;
     --shadow:  rgba(0,0,0,.3);
@@ -168,6 +168,14 @@ body {
     gap: 4px;
 }
 
+.topbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
 .topbar-title {
     font-family: var(--font-serif);
     font-size: 17px;
@@ -225,6 +233,27 @@ body {
 }
 .btn-import:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
 
+.identity-button {
+    min-height: 36px;
+    max-width: 140px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font: 400 13px var(--font-sans);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.identity-button:hover,
+.identity-button.active {
+    border-color: var(--accent-orange);
+    color: var(--text-primary);
+}
+
 /* ─── Tabs ───────────────────────────────────── */
 .topbar-tabs {
     display: flex;
@@ -257,11 +286,11 @@ body {
 
 .tab:hover { color: var(--text-primary); }
 
-.tab.active { font-weight: 400; color: var(--text-primary); }
-
-.tab[data-author="卷宝"].active { border-bottom-color: var(--accent-orange); }
-.tab[data-author="小克"].active { border-bottom-color: var(--accent-teal); }
-.tab[data-author="然然"].active { border-bottom-color: var(--accent-rose); }
+.tab.active {
+    font-weight: 400;
+    color: var(--text-primary);
+    border-bottom-color: var(--member-accent, var(--accent-orange));
+}
 
 /* ─── Topbar Search ─────────────────────────── */
 .topbar-search {
@@ -391,7 +420,6 @@ body {
     flex-direction: column;
     padding: 12px 16px;
     cursor: pointer;
-    border-left: 3px solid transparent;
     border-bottom: 1px solid var(--border);
     min-height: 44px;
     gap: 4px;
@@ -400,8 +428,8 @@ body {
 .sidebar-item:hover { background: var(--bg-secondary); }
 .sidebar-item.active {
     background: var(--bg-secondary);
-    border-left-color: var(--accent-orange);
 }
+.sidebar-item.active .si-title { font-weight: 400; }
 
 .sidebar-item .si-top {
     display: flex;
@@ -510,6 +538,17 @@ body {
 }
 
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state h2 {
+    color: var(--title-color);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.empty-state p {
+    max-width: 36rem;
+    text-align: center;
+    line-height: 1.7;
+}
 
 /* ─── View Mode ──────────────────────────────── */
 .view-header {
@@ -642,9 +681,11 @@ body {
 .markdown-body li { margin: 0.2em 0; }
 
 .markdown-body blockquote {
-    border-left: 3px solid var(--accent-orange);
-    padding-left: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
     margin: 1em 0;
+    background: var(--bg-secondary);
     color: var(--text-secondary);
 }
 
@@ -720,10 +761,6 @@ body {
     font-size: 13px;
 }
 
-.comment-author[data-author="卷宝"] { color: var(--accent-orange); }
-.comment-author[data-author="小克"] { color: var(--accent-teal); }
-.comment-author[data-author="然然"] { color: var(--accent-rose); }
-
 .comment-body {
     font-size: 14px;
     font-weight: 300;
@@ -783,35 +820,20 @@ body {
 
 .comment-send:hover { opacity: 0.9; }
 
-/* ─── Author Selection ───────────────── */
-.edit-author-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 4px;
+.comment-input:disabled,
+.comment-send:disabled,
+.btn-write:disabled,
+.fab-write:disabled {
+    cursor: not-allowed;
+    opacity: .55;
 }
 
-.author-select {
-    display: flex;
-    gap: 4px;
-}
-
-.author-btn {
-    font-family: var(--font-sans);
+/* ─── Editing identity ───────────────── */
+.edit-identity {
     font-size: 13px;
-    font-weight: 300;
-    padding: 4px 14px;
-    border: 1px solid var(--border);
-    background: var(--bg-primary);
     color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 6px;
-    min-height: 32px;
+    line-height: 1.5;
 }
-.author-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-.author-btn[data-author="卷宝"].active { border-color: var(--accent-orange); color: var(--accent-orange); font-weight: 400; }
-.author-btn[data-author="小克"].active { border-color: var(--accent-teal); color: var(--accent-teal); font-weight: 400; }
-.author-btn[data-author="然然"].active { border-color: var(--accent-rose); color: var(--accent-rose); font-weight: 400; }
 
 /* ─── Edit Mode ──────────────────────────────── */
 .edit-mode {
@@ -941,6 +963,96 @@ body {
     overflow-y: auto;
 }
 
+/* ─── Identity Dialog ───────────────────────── */
+.identity-dialog {
+    width: min(420px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.identity-dialog::backdrop {
+    background: var(--overlay-bg);
+}
+
+.identity-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px;
+}
+
+.identity-form h2 {
+    color: var(--title-color);
+    font: 600 20px/1.4 var(--font-serif);
+    margin-bottom: 6px;
+}
+
+.identity-form p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.identity-form label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.identity-form input {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: 400 14px var(--font-sans);
+    outline: none;
+}
+
+.identity-form input:focus { border-color: var(--accent-orange); }
+.identity-form .identity-error { min-height: 20px; color: #B84E4E; }
+
+.identity-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.dialog-primary,
+.dialog-secondary {
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font: 400 13px var(--font-sans);
+    cursor: pointer;
+}
+
+.dialog-primary {
+    border: none;
+    background: var(--accent-orange);
+    color: #fff;
+}
+
+.dialog-secondary {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.dialog-primary:disabled { cursor: wait; opacity: .65; }
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--accent-orange);
+    outline-offset: 2px;
+}
+
 /* ─── FAB (Floating Action Button) ───────────── */
 .fab-write {
     display: none;
@@ -1004,6 +1116,12 @@ body {
 @media (max-width: 480px) {
 
     .content { padding: 20px 16px; }
+
+    .topbar { padding: 0 8px; }
+
+    .topbar-title { display: none; }
+
+    .identity-button { max-width: 96px; padding-inline: 9px; }
 
     .diary-title { font-size: 20px; }
 

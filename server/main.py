@@ -1,7 +1,6 @@
-"""「汀」—— 双人日记本 Web App 后端主入口"""
+"""「汀」多人共享日记后端入口。"""
 
 import os
-import json
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -11,9 +10,9 @@ from typing import Optional
 from . import database as db
 from . import auth
 from . import mcp_handler
-from .config import MOODS, TOKENS
+from .config import MEMBERS, MOODS, TOKENS
 
-app = FastAPI(title="汀", version="1.2.0")
+app = FastAPI(title="汀：多人共享日记", version="2.0.0")
 
 # ─── 初始化数据库 ─────────────────────────────────────────
 
@@ -34,7 +33,6 @@ class DiaryUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     moods: Optional[list[str]] = None
-    author: Optional[str] = None
 
 
 class DiaryImport(BaseModel):
@@ -57,22 +55,19 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 
 @app.get("/")
 async def serve_index():
-    import json
-    html_path = os.path.join(STATIC_DIR, "index.html")
-    with open(html_path, "r", encoding="utf-8") as f:
-        html = f.read()
-    # 注入 token 配置（从环境变量读取，不暴露在静态 JS 中）
-    author_tokens = {}
-    admin_token = ""
-    for token, author in TOKENS.items():
-        if author == "admin":
-            admin_token = token
-        else:
-            author_tokens[author] = token
-    html = html.replace("__TING_TOKENS__", json.dumps(author_tokens, ensure_ascii=False))
-    html = html.replace("__TING_ADMIN_TOKEN__", admin_token)
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse(content=html)
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/api/config")
+def api_get_config(_viewer: str = Depends(require_auth)):
+    """返回已验证成员可见的界面配置，不包含任何 token。"""
+    return {"members": list(MEMBERS.keys()), "moods": MOODS}
+
+
+@app.get("/api/session")
+def api_get_session(author: str = Depends(require_auth)):
+    """验证当前 token，并返回对应身份。"""
+    return {"author": author, "is_admin": author == "admin"}
 
 
 # ─── Diary API ───────────────────────────────────────────
@@ -88,12 +83,13 @@ def api_create_diary(body: DiaryCreate, request: Request, author: str = Depends(
 @app.get("/api/diary")
 def api_list_diaries(author: Optional[str] = None, mood: Optional[str] = None,
                      search: Optional[str] = None,
-                     limit: int = 20, offset: int = 0):
+                     limit: int = 20, offset: int = 0,
+                     _viewer: str = Depends(require_auth)):
     return db.list_diaries(author=author, mood=mood, search=search, limit=limit, offset=offset)
 
 
 @app.get("/api/diary/{diary_id}")
-def api_get_diary(diary_id: int):
+def api_get_diary(diary_id: int, _viewer: str = Depends(require_auth)):
     d = db.get_diary(diary_id)
     if not d:
         raise HTTPException(404, "日记不存在")
@@ -110,7 +106,7 @@ def api_update_diary(diary_id: int, body: DiaryUpdate, request: Request,
     if author != "admin" and existing["author"] != author:
         raise HTTPException(403, "仅作者本人或 admin 可修改")
     moods_str = ",".join(body.moods) if body.moods is not None else None
-    db.update_diary(diary_id, title=body.title, content=body.content, moods=moods_str, author=body.author)
+    db.update_diary(diary_id, title=body.title, content=body.content, moods=moods_str)
     return {"status": "ok"}
 
 
@@ -129,14 +125,22 @@ def api_delete_diary(diary_id: int, request: Request,
 @app.post("/api/diary/import")
 def api_import_diaries(body: DiaryImport, request: Request,
                        author: str = Depends(require_auth)):
-    if author != "admin":
-        raise HTTPException(403, "仅 admin 可批量导入")
-    db.import_entries(body.entries)
-    return {"status": "ok", "count": len(body.entries)}
+    entries = []
+    for original in body.entries:
+        entry = dict(original)
+        if author == "admin":
+            entry_author = str(entry.get("author", "")).strip()
+            if entry_author not in MEMBERS:
+                raise HTTPException(400, f"未配置的成员：{entry_author or '空'}")
+        else:
+            entry["author"] = author
+        entries.append(entry)
+    db.import_entries(entries)
+    return {"status": "ok", "count": len(entries)}
 
 
 @app.get("/api/moods")
-def api_get_moods():
+def api_get_moods(_viewer: str = Depends(require_auth)):
     """返回所有可用心情标签（来自 config 定义）。"""
     return {"moods": MOODS}
 
@@ -154,7 +158,7 @@ def api_create_comment(diary_id: int, body: CommentCreate, request: Request,
 
 
 @app.get("/api/diary/{diary_id}/comments")
-def api_list_comments(diary_id: int):
+def api_list_comments(diary_id: int, _viewer: str = Depends(require_auth)):
     comments = db.list_comments(diary_id)
     return {"comments": comments}
 
@@ -170,10 +174,6 @@ def api_delete_comment(comment_id: int, request: Request,
     db.delete_comment(comment_id)
     return {"status": "ok"}
 
-
-import asyncio
-import uuid
-from fastapi.responses import StreamingResponse
 
 # ─── MCP 端点（HTTP JSON-RPC）──────────────────────────
 

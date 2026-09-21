@@ -1,0 +1,1 @@
+"""Ting test suite."""

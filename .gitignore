@@ -18,3 +18,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Impeccable 本地预览会话
+.impeccable/live/sessions/
